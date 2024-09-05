@@ -4,9 +4,6 @@ import os
 from fastapi import FastAPI, HTTPException, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import APIKeyHeader
-from fastapi_cache import FastAPICache
-from fastapi_cache.backends.inmemory import InMemoryBackend
-from fastapi_cache.decorator import cache
 from pydantic import BaseModel
 from typing import List, Dict
 from contextlib import asynccontextmanager
@@ -15,6 +12,10 @@ from slowapi.util import get_remote_address
 from slowapi.errors import RateLimitExceeded
 import httpx
 import logging
+from fastapi.responses import JSONResponse
+from fastapi_cache import FastAPICache
+from fastapi_cache.backends.inmemory import InMemoryBackend
+from fastapi_cache.decorator import cache
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -80,8 +81,8 @@ async def get_block_ips():
 @cache(expire=3600)  # Cache for 1 hour
 async def get_bot_ips(bot_type: str):
     data = read_ip_data()
-    if bot_type in data:
-        return {bot_type: data[bot_type]}
+    if bot_type in data["openai"]:
+        return {bot_type: data["openai"][bot_type]}
     raise HTTPException(status_code=404, detail="Bot type not found")
 
 logging.basicConfig(level=logging.INFO)
@@ -153,6 +154,10 @@ async def update_ips():
             error_message += f"\n\nErrors encountered: {'; '.join(errors)}"
         logger.error(error_message)
         raise HTTPException(status_code=503, detail=error_message)
+
+@app.get("/health")
+async def health_check():
+    return JSONResponse(content={"status": "healthy"}, status_code=200)
 
 if __name__ == "__main__":
     import uvicorn
