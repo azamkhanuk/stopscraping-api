@@ -1,5 +1,6 @@
 import json
 import asyncio
+import os
 from fastapi import FastAPI, HTTPException, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import APIKeyHeader
@@ -31,7 +32,7 @@ app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 # CORS
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["https://stopscraping.me"],
+    allow_origins=os.getenv("ALLOWED_ORIGINS", "https://stopscraping.me").split(","),
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -42,7 +43,7 @@ API_KEY_NAME = "X-API-Key"
 api_key_header = APIKeyHeader(name=API_KEY_NAME, auto_error=False)
 
 async def get_api_key(api_key_header: str = Depends(api_key_header)):
-    if api_key_header == "your-secret-api-key":
+    if api_key_header == os.getenv("API_KEY"):
         return api_key_header   
     raise HTTPException(status_code=403, detail="Could not validate credentials")
 
@@ -155,4 +156,4 @@ async def update_ips():
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=8000)
+    uvicorn.run(app, host="0.0.0.0", port=int(os.getenv("PORT", 8000)))
