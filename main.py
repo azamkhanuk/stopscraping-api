@@ -1,16 +1,57 @@
 import json
 import asyncio
 from fastapi import FastAPI, HTTPException, Depends
-from pydantic import BaseModel
-import httpx
-from typing import List, Dict
-import logging
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.security import APIKeyHeader
 from fastapi_cache import FastAPICache
 from fastapi_cache.backends.inmemory import InMemoryBackend
 from fastapi_cache.decorator import cache
+from pydantic import BaseModel
+from typing import List, Dict
 from contextlib import asynccontextmanager
+from slowapi import Limiter, _rate_limit_exceeded_handler
+from slowapi.util import get_remote_address
+from slowapi.errors import RateLimitExceeded
+import httpx
+import logging
 
-app = FastAPI(title="IP Block List API")
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # Initialize FastAPICache
+    FastAPICache.init(InMemoryBackend())
+    yield
+
+app = FastAPI(lifespan=lifespan)
+
+# Rate limiting
+limiter = Limiter(key_func=get_remote_address)
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+
+# CORS
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["https://stopscraping.me"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+# API Key authentication
+API_KEY_NAME = "X-API-Key"
+api_key_header = APIKeyHeader(name=API_KEY_NAME, auto_error=False)
+
+async def get_api_key(api_key_header: str = Depends(api_key_header)):
+    if api_key_header == "your-secret-api-key":
+        return api_key_header   
+    raise HTTPException(status_code=403, detail="Could not validate credentials")
+
+@app.get("/api/protected-endpoint")
+@limiter.limit("5/minute")
+async def protected_route(api_key: str = Depends(get_api_key)):
+    return {"message": "This is a protected endpoint"}
+
+# Remember to use HTTPS in production
 
 DATA_FILE = "block_ips.json"
 URL_FILE = "ai_urls.json"
@@ -28,13 +69,6 @@ def read_ip_data() -> Dict:
 def write_ip_data(data: Dict):
     with open(DATA_FILE, "w") as f:
         json.dump(data, f, indent=2)
-
-@asynccontextmanager
-async def lifespan(app: FastAPI):
-    FastAPICache.init(InMemoryBackend())
-    yield
-
-app = FastAPI(title="IP Block List API", lifespan=lifespan)
 
 @app.get("/api/block-ips", response_model=IPData)
 @cache(expire=3600)  # Cache for 1 hour
