@@ -40,7 +40,7 @@ async def get_api_key(api_key_header: str = Depends(api_key_header)):
         return api_key_header   
     raise HTTPException(status_code=403, detail="Could not validate credentials")
 
-@app.get("/api/protected-endpoint")
+@app.get("/protected-endpoint")
 @limiter.limit("5/minute")
 async def protected_route(request: Request, api_key: str = Depends(get_api_key)):
     return {"message": "This is a protected endpoint"}
@@ -64,12 +64,12 @@ def write_ip_data(data: Dict):
     with open(DATA_FILE, "w") as f:
         json.dump(data, f, indent=2)
 
-@app.get("/api/block-ips", response_model=IPData)
+@app.get("/block-ips", response_model=IPData)
 @lru_cache(maxsize=1)
 def get_block_ips():
     return read_ip_data()
 
-@app.get("/api/block-ips/{bot_type}", response_model=Dict[str, List[str]])
+@app.get("/block-ips/{bot_type}", response_model=Dict[str, List[str]])
 @lru_cache(maxsize=32)
 def get_bot_ips(bot_type: str):
     data = read_ip_data()
@@ -87,7 +87,7 @@ def read_url_data() -> Dict:
     except FileNotFoundError:
         return {"openai": {}}
 
-@app.get("/api/update-ips")
+@app.get("/update-ips")
 async def update_ips():
     headers = {
         "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36",
