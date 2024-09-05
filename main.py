@@ -13,17 +13,9 @@ from slowapi.errors import RateLimitExceeded
 import httpx
 import logging
 from fastapi.responses import JSONResponse
-from fastapi_cache import FastAPICache
-from fastapi_cache.backends.inmemory import InMemoryBackend
-from fastapi_cache.decorator import cache
+from functools import lru_cache
 
-@asynccontextmanager
-async def lifespan(app: FastAPI):
-    # Initialize FastAPICache
-    FastAPICache.init(InMemoryBackend())
-    yield
-
-app = FastAPI(lifespan=lifespan)
+app = FastAPI()
 
 # Rate limiting
 limiter = Limiter(key_func=get_remote_address)
@@ -73,13 +65,13 @@ def write_ip_data(data: Dict):
         json.dump(data, f, indent=2)
 
 @app.get("/api/block-ips", response_model=IPData)
-@cache(expire=3600)  # Cache for 1 hour
-async def get_block_ips():
+@lru_cache(maxsize=1)
+def get_block_ips():
     return read_ip_data()
 
 @app.get("/api/block-ips/{bot_type}", response_model=Dict[str, List[str]])
-@cache(expire=3600)  # Cache for 1 hour
-async def get_bot_ips(bot_type: str):
+@lru_cache(maxsize=32)
+def get_bot_ips(bot_type: str):
     data = read_ip_data()
     if bot_type in data["openai"]:
         return {bot_type: data["openai"][bot_type]}
