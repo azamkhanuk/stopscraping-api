@@ -1,10 +1,14 @@
 import json
 import asyncio
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Depends
 from pydantic import BaseModel
 import httpx
 from typing import List, Dict
 import logging
+from fastapi_cache import FastAPICache
+from fastapi_cache.backends.inmemory import InMemoryBackend
+from fastapi_cache.decorator import cache
+from contextlib import asynccontextmanager
 
 app = FastAPI(title="IP Block List API")
 
@@ -25,11 +29,20 @@ def write_ip_data(data: Dict):
     with open(DATA_FILE, "w") as f:
         json.dump(data, f, indent=2)
 
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    FastAPICache.init(InMemoryBackend())
+    yield
+
+app = FastAPI(title="IP Block List API", lifespan=lifespan)
+
 @app.get("/api/block-ips", response_model=IPData)
+@cache(expire=3600)  # Cache for 1 hour
 async def get_block_ips():
     return read_ip_data()
 
 @app.get("/api/block-ips/{bot_type}", response_model=Dict[str, List[str]])
+@cache(expire=3600)  # Cache for 1 hour
 async def get_bot_ips(bot_type: str):
     data = read_ip_data()
     if bot_type in data:
@@ -62,7 +75,6 @@ async def update_ips():
     updated = False
 
     async with httpx.AsyncClient(headers=headers) as client:
-        # First, make a request to the main page
         await client.get("https://openai.com/")
         
         for bot_type, url in openai_urls.items():
