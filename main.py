@@ -1,7 +1,7 @@
 import json
 import asyncio
 import os
-from fastapi import FastAPI, HTTPException, Depends
+from fastapi import FastAPI, HTTPException, Depends, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import APIKeyHeader
 from pydantic import BaseModel
@@ -50,7 +50,7 @@ async def get_api_key(api_key_header: str = Depends(api_key_header)):
 
 @app.get("/api/protected-endpoint")
 @limiter.limit("5/minute")
-async def protected_route(api_key: str = Depends(get_api_key)):
+async def protected_route(request: Request, api_key: str = Depends(get_api_key)):
     return {"message": "This is a protected endpoint"}
 
 # Remember to use HTTPS in production
