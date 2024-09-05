@@ -1,0 +1,7 @@
+{
+  "openai": {
+    "searchbot": "https://openai.com/searchbot.json",
+    "chatgpt-user": "https://openai.com/chatgpt-user.json",
+    "gptbot": "https://openai.com/gptbot.json"
+  }
+}
