@@ -1,7 +1,7 @@
 import json
 import asyncio
 import os
-from fastapi import FastAPI, HTTPException, Depends, Request, Security
+from fastapi import FastAPI, HTTPException, Depends, Request, Security, Header
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import APIKeyHeader
 from pydantic import BaseModel
@@ -185,9 +185,15 @@ def read_url_data() -> Dict:
     except FileNotFoundError:
         return {"openai": {}}
 
+UPDATE_IP_PASS = os.getenv("UPDATE_IP_PASS")
+if not UPDATE_IP_PASS:
+    raise ValueError("UPDATE_IP_PASS must be set in the .env file")
+
 @app.get("/update-ips")
-@tier_limit()
-async def update_ips(api_key_data: dict = Depends(verify_api_key)):
+async def update_ips(x_update_key: str = Header(...)):
+    if x_update_key != UPDATE_IP_PASS:
+        raise HTTPException(status_code=403, detail="Invalid update key")
+    
     headers = {
         "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36",
         "Accept": "application/json",
