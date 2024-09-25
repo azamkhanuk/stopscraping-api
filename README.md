@@ -99,4 +99,4 @@ Example error response:
   "detail": "API call limit exceeded. Resets in 2 hours, 30 minutes."
 }
 
-For any issues or questions about the API, please contact our support team.
+For any issues or questions about the API, please let me know. 
